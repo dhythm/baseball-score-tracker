@@ -12,3 +12,13 @@ pnpm add turbo --save-dev --workspace-root
 
 mkdir apps packages
 ```
+
+## Run apps
+
+```sh
+pnpm install
+
+pnpm run dev
+pnpm run dev -F <target>
+pnpm run dev --filter <target>
+```
