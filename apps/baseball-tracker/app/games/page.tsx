@@ -220,6 +220,54 @@ export default function GamesPage() {
       return
     }
 
+    // ホームチームの重複チェック
+    const homePlayerIds = homeLineup.map(player => player.playerId)
+    const homePositions = homeLineup.map(player => player.position).filter(pos => pos !== "指")
+    const hasHomeDuplicatePlayer = new Set(homePlayerIds).size !== homePlayerIds.length
+    const hasHomeDuplicatePosition = new Set(homePositions).size !== homePositions.length
+
+    if (hasHomeDuplicatePlayer) {
+      toast({
+        title: "エラー",
+        description: "ホームチームの打順に同じ選手が複数回選択されています",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (hasHomeDuplicatePosition) {
+      toast({
+        title: "エラー",
+        description: "ホームチームの打順に同じポジション（指名打者以外）が複数回選択されています",
+        variant: "destructive",
+      })
+      return
+    }
+
+    // アウェイチームの重複チェック
+    const awayPlayerIds = awayLineup.map(player => player.playerId)
+    const awayPositions = awayLineup.map(player => player.position).filter(pos => pos !== "指")
+    const hasAwayDuplicatePlayer = new Set(awayPlayerIds).size !== awayPlayerIds.length
+    const hasAwayDuplicatePosition = new Set(awayPositions).size !== awayPositions.length
+
+    if (hasAwayDuplicatePlayer) {
+      toast({
+        title: "エラー",
+        description: "アウェイチームの打順に同じ選手が複数回選択されています",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (hasAwayDuplicatePosition) {
+      toast({
+        title: "エラー",
+        description: "アウェイチームの打順に同じポジション（指名打者以外）が複数回選択されています",
+        variant: "destructive",
+      })
+      return
+    }
+
     const newGame: GameState = {
       id: Date.now().toString(),
       homeTeamId,
