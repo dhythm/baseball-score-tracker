@@ -228,7 +228,7 @@ export default function GamesPage() {
 
     return (
       <div className="space-y-2">
-        <label className="text-sm font-medium">{isHome ? "後攻" : "先攻"}チーム打順</label>
+        <label className="text-sm font-medium">打順</label>
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
@@ -425,7 +425,7 @@ export default function GamesPage() {
 
                 {awayTeamId && (
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">先攻先発投手</label>
+                    <label className="text-sm font-medium">先発投手</label>
                     <Select value={awayPitcherId} onValueChange={setAwayPitcherId}>
                       <SelectTrigger>
                         <SelectValue placeholder="投手を選択" />
@@ -461,7 +461,7 @@ export default function GamesPage() {
 
                 {homeTeamId && (
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">後攻先発投手</label>
+                    <label className="text-sm font-medium">先発投手</label>
                     <Select value={homePitcherId} onValueChange={setHomePitcherId}>
                       <SelectTrigger>
                         <SelectValue placeholder="投手を選択" />
