@@ -510,7 +510,7 @@ export default function GameDetailPage() {
 
     // 安打の場合は走者を追加
     if (["安打", "二塁打", "三塁打", "本塁打"].includes(result)) {
-      const newRunners = [...currentGame.runners]
+      let newRunners = [...currentGame.runners]
       
       // 既存の走者を進塁
       currentGame.runners.forEach(runner => {
