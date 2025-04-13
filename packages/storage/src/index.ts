@@ -1,3 +1,6 @@
+import * as fs from 'fs';
+import * as path from 'path';
+
 export type Player = {
   id: string;
   name: string;
@@ -60,13 +63,70 @@ export type Game = {
   };
 };
 
+interface StorageAdapter {
+  getItem(key: string): string | null;
+  setItem(key: string, value: string): void;
+  removeItem(key: string): void;
+  clear(): void;
+}
+
+class BrowserStorageAdapter implements StorageAdapter {
+  private storage: globalThis.Storage;
+
+  constructor(type: 'local' | 'session') {
+    this.storage = type === 'local' ? window.localStorage : window.sessionStorage;
+  }
+
+  getItem(key: string): string | null {
+    return this.storage.getItem(key);
+  }
+
+  setItem(key: string, value: string): void {
+    this.storage.setItem(key, value);
+  }
+
+  removeItem(key: string): void {
+    this.storage.removeItem(key);
+  }
+
+  clear(): void {
+    this.storage.clear();
+  }
+}
+
+class MemoryStorageAdapter implements StorageAdapter {
+  private storage: Map<string, string>;
+
+  constructor() {
+    this.storage = new Map();
+  }
+
+  getItem(key: string): string | null {
+    return this.storage.get(key) ?? null;
+  }
+
+  setItem(key: string, value: string): void {
+    this.storage.set(key, value);
+  }
+
+  removeItem(key: string): void {
+    this.storage.delete(key);
+  }
+
+  clear(): void {
+    this.storage.clear();
+  }
+}
+
 export class Storage {
-  private storage: typeof localStorage | typeof sessionStorage;
+  private storage: StorageAdapter;
   private readonly TEAMS_KEY = "baseball-teams";
   private readonly GAMES_KEY = "baseball-games";
 
   constructor(type: 'local' | 'session' = 'local') {
-    this.storage = type === 'local' ? localStorage : sessionStorage;
+    this.storage = typeof window !== 'undefined'
+      ? new BrowserStorageAdapter(type)
+      : new MemoryStorageAdapter();
   }
 
   get<T>(key: string): T | null {
