@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { PlusCircle, Trash2 } from "lucide-react"
+import { PlusCircle, Trash2, Pencil, X, Check } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { Storage, Team as StorageTeam } from "@packages/storage"
 
@@ -58,6 +58,8 @@ export default function TeamsPage() {
     position: [],
     type: "both",
   })
+  const [editingPlayer, setEditingPlayer] = useState<Player | null>(null)
+  const [editedPlayer, setEditedPlayer] = useState<Player | null>(null)
 
   // チームを保存
   const saveTeams = (updatedTeams: Team[]) => {
@@ -178,6 +180,38 @@ export default function TeamsPage() {
     })
   }
 
+  // 選手情報を更新
+  const updatePlayer = () => {
+    if (!selectedTeam || !editedPlayer) return
+
+    const updatedPlayers = selectedTeam.players.map((player) =>
+      player.id === editedPlayer.id ? editedPlayer : player
+    )
+
+    const updatedTeam = {
+      ...selectedTeam,
+      players: updatedPlayers,
+    }
+
+    const updatedTeams = teams.map((team) => (team.id === selectedTeam.id ? updatedTeam : team))
+
+    saveTeams(updatedTeams)
+    setSelectedTeam(updatedTeam)
+    setEditingPlayer(null)
+    setEditedPlayer(null)
+
+    toast({
+      title: "選手情報更新",
+      description: `${editedPlayer.name}の情報が更新されました`,
+    })
+  }
+
+  // 編集をキャンセル
+  const cancelEdit = () => {
+    setEditingPlayer(null)
+    setEditedPlayer(null)
+  }
+
   return (
     <div className="container mx-auto py-10">
       <div className="flex justify-between items-center mb-6">
@@ -251,19 +285,126 @@ export default function TeamsPage() {
                     <div className="space-y-2">
                       {selectedTeam.players.map((player) => (
                         <div key={player.id} className="flex justify-between items-center p-2 border rounded">
-                          <div>
-                            <span className="font-medium">{player.name}</span>
-                            <div className="text-sm text-muted-foreground">
-                              {player.number && `#${player.number} `}
-                              {Array.isArray(player.position) ? player.position.join(", ") : player.position}
-                              {player.type === "pitcher" && "投手"}
-                              {player.type === "batter" && "打者"}
-                              {player.type === "both" && "投手/打者"}
+                          {editingPlayer?.id === player.id ? (
+                            <div className="flex-1 space-y-2">
+                              <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                  <Label htmlFor="edit-name">選手名</Label>
+                                  <Input
+                                    id="edit-name"
+                                    value={editedPlayer?.name || ""}
+                                    onChange={(e) =>
+                                      setEditedPlayer(prev => ({ ...prev!, name: e.target.value }))
+                                    }
+                                  />
+                                </div>
+                                <div>
+                                  <Label htmlFor="edit-number">背番号</Label>
+                                  <Input
+                                    id="edit-number"
+                                    value={editedPlayer?.number || ""}
+                                    onChange={(e) =>
+                                      setEditedPlayer(prev => ({ ...prev!, number: e.target.value }))
+                                    }
+                                  />
+                                </div>
+                              </div>
+                              <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                  <Label>ポジション</Label>
+                                  <div className="grid grid-cols-2 gap-2">
+                                    {positions.map((pos) => (
+                                      <div key={pos} className="flex items-center space-x-2">
+                                        <input
+                                          type="checkbox"
+                                          id={`edit-position-${pos}`}
+                                          checked={editedPlayer?.position.includes(pos)}
+                                          onChange={(e) => {
+                                            const updatedPositions = e.target.checked
+                                              ? [...(editedPlayer?.position || []), pos]
+                                              : editedPlayer?.position.filter((p) => p !== pos) || []
+                                            setEditedPlayer(prev => ({
+                                              ...prev!,
+                                              position: updatedPositions,
+                                            }))
+                                          }}
+                                          className="h-4 w-4"
+                                        />
+                                        <Label htmlFor={`edit-position-${pos}`}>{pos}</Label>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                                <div>
+                                  <Label htmlFor="edit-type">タイプ</Label>
+                                  <select
+                                    id="edit-type"
+                                    className="w-full p-2 rounded border"
+                                    value={editedPlayer?.type}
+                                    onChange={(e) =>
+                                      setEditedPlayer(prev => ({
+                                        ...prev!,
+                                        type: e.target.value as "pitcher" | "batter" | "both",
+                                      }))
+                                    }
+                                  >
+                                    <option value="both">投手/打者</option>
+                                    <option value="pitcher">投手のみ</option>
+                                    <option value="batter">打者のみ</option>
+                                  </select>
+                                </div>
+                              </div>
+                              <div className="flex justify-end space-x-2 mt-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={cancelEdit}
+                                >
+                                  <X className="h-4 w-4 mr-1" />
+                                  キャンセル
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  onClick={updatePlayer}
+                                >
+                                  <Check className="h-4 w-4 mr-1" />
+                                  保存
+                                </Button>
+                              </div>
                             </div>
-                          </div>
-                          <Button variant="ghost" size="icon" onClick={() => deletePlayer(player.id)}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          ) : (
+                            <>
+                              <div>
+                                <span className="font-medium">{player.name}</span>
+                                <div className="text-sm text-muted-foreground">
+                                  {player.number && `#${player.number} `}
+                                  {Array.isArray(player.position) ? player.position.join(", ") : player.position}
+                                  {player.type === "pitcher" && " 投手"}
+                                  {player.type === "batter" && " 打者"}
+                                  {player.type === "both" && " 投手/打者"}
+                                </div>
+                              </div>
+                              <div className="flex space-x-2">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => {
+                                    setEditingPlayer(player)
+                                    setEditedPlayer({ ...player })
+                                  }}
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => deletePlayer(player.id)}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </>
+                          )}
                         </div>
                       ))}
                     </div>
