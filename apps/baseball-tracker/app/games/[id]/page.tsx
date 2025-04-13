@@ -382,8 +382,8 @@ export default function GameDetailPage() {
         if (game) {
           setCurrentGame({
             ...game,
-            plays: game.plays || [],
-            runners: game.runners || []
+            plays: (game as GameState).plays || [],
+            runners: (game as GameState).runners || []
           })
         }
       }
