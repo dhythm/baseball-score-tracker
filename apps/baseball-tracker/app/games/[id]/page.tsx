@@ -472,11 +472,14 @@ export default function GameDetailPage() {
     // 3アウトで攻守交代
     if (newOuts >= 3) {
       newOuts = 0
-      newIsTopInning = !newIsTopInning
-
+      newIsTopInning = !currentGame.isTopInning
       // 裏の攻撃が終わったら次のイニングへ
-      if (!newIsTopInning) {
-        newInning += 1
+      if (currentGame.isTopInning) {
+        // 表の攻撃が終わった場合は裏へ
+        newInning = currentGame.currentInning
+      } else {
+        // 裏の攻撃が終わった場合は次のイニングの表へ
+        newInning = currentGame.currentInning + 1
       }
     }
 
@@ -686,10 +689,14 @@ export default function GameDetailPage() {
     let newInning = currentGame.currentInning
     if (newOuts >= 3) {
       newOuts = 0
-      newIsTopInning = !newIsTopInning
+      newIsTopInning = !currentGame.isTopInning
       newRunners = [] // イニング終了時に走者をクリア
-      if (!newIsTopInning) {
-        newInning += 1
+      if (currentGame.isTopInning) {
+        // 表の攻撃が終わった場合は裏へ
+        newInning = currentGame.currentInning
+      } else {
+        // 裏の攻撃が終わった場合は次のイニングの表へ
+        newInning = currentGame.currentInning + 1
       }
     }
 
