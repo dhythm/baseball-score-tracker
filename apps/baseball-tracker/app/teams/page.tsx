@@ -12,11 +12,13 @@ import { useToast } from "@/hooks/use-toast"
 import { Storage, Team as StorageTeam } from "@packages/storage"
 
 // 型定義
+type Position = "投手" | "捕手" | "一塁手" | "二塁手" | "三塁手" | "遊撃手" | "外野手"
+
 type Player = {
   id: string
   name: string
   number: string
-  position: string
+  position: Position[]
   type: "pitcher" | "batter" | "both"
 }
 
@@ -28,12 +30,22 @@ type Team = {
 
 const storage = new Storage()
 
+const positions: Position[] = ["投手", "捕手", "一塁手", "二塁手", "三塁手", "遊撃手", "外野手"]
+
 export default function TeamsPage() {
   const { toast } = useToast()
   const [teams, setTeams] = useState<Team[]>(() => {
     // ローカルストレージから読み込み
     if (typeof window !== "undefined") {
-      return storage.getTeams()
+      const storedTeams = storage.getTeams()
+      // positionを文字列から配列に変換
+      return storedTeams.map(team => ({
+        ...team,
+        players: team.players.map(player => ({
+          ...player,
+          position: player.position.split(", ").filter(Boolean) as Position[]
+        }))
+      }))
     }
     return []
   })
@@ -43,14 +55,22 @@ export default function TeamsPage() {
   const [newPlayer, setNewPlayer] = useState<Omit<Player, "id">>({
     name: "",
     number: "",
-    position: "",
+    position: [],
     type: "both",
   })
 
   // チームを保存
   const saveTeams = (updatedTeams: Team[]) => {
     setTeams(updatedTeams)
-    storage.setTeams(updatedTeams)
+    // positionを配列から文字列に変換
+    const teamsToStore = updatedTeams.map(team => ({
+      ...team,
+      players: team.players.map(player => ({
+        ...player,
+        position: player.position.join(", ")
+      }))
+    }))
+    storage.setTeams(teamsToStore)
   }
 
   // チームを追加
@@ -126,7 +146,7 @@ export default function TeamsPage() {
     setNewPlayer({
       name: "",
       number: "",
-      position: "",
+      position: [],
       type: "both",
     })
 
@@ -235,7 +255,7 @@ export default function TeamsPage() {
                             <span className="font-medium">{player.name}</span>
                             <div className="text-sm text-muted-foreground">
                               {player.number && `#${player.number} `}
-                              {player.position && `${player.position} `}
+                              {Array.isArray(player.position) ? player.position.join(", ") : player.position}
                               {player.type === "pitcher" && "投手"}
                               {player.type === "batter" && "打者"}
                               {player.type === "both" && "投手/打者"}
@@ -274,12 +294,25 @@ export default function TeamsPage() {
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="player-position">ポジション</Label>
-                        <Input
-                          id="player-position"
-                          value={newPlayer.position}
-                          onChange={(e) => setNewPlayer({ ...newPlayer, position: e.target.value })}
-                          placeholder="例: 遊撃手、外野手"
-                        />
+                        <div className="grid grid-cols-2 gap-2">
+                          {positions.map((pos) => (
+                            <div key={pos} className="flex items-center space-x-2">
+                              <input
+                                type="checkbox"
+                                id={`position-${pos}`}
+                                checked={newPlayer.position.includes(pos)}
+                                onChange={(e) => {
+                                  const updatedPositions = e.target.checked
+                                    ? [...newPlayer.position, pos]
+                                    : newPlayer.position.filter((p) => p !== pos)
+                                  setNewPlayer({ ...newPlayer, position: updatedPositions })
+                                }}
+                                className="h-4 w-4"
+                              />
+                              <Label htmlFor={`position-${pos}`}>{pos}</Label>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="player-type">タイプ</Label>
