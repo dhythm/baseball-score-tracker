@@ -29,13 +29,28 @@ export type AtBatResult =
   | "三振"
   | "ゴロアウト"
   | "フライアウト"
-  | "ライナーアウト";
+  | "ライナーアウト"
+  | "併殺打"
+  | "三重殺";
+
+export type BattedBallDirection =
+  | "ピッチャー"
+  | "キャッチャー"
+  | "ファースト"
+  | "セカンド"
+  | "サード"
+  | "ショート"
+  | "レフト"
+  | "センター"
+  | "ライト";
 
 export type AtBat = {
   id: string;
   batterId: string;
   pitcherId: string;
   result: AtBatResult;
+  direction?: BattedBallDirection;
+  rbi: number;
   inning: number;
   outs: number;
   isTopInning: boolean;

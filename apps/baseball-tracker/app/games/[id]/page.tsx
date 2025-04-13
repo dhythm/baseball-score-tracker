@@ -39,12 +39,27 @@ type AtBatResult =
   | "ゴロアウト"
   | "フライアウト"
   | "ライナーアウト"
+  | "併殺打"
+  | "三重殺"
+
+type BattedBallDirection =
+  | "ピッチャー"
+  | "キャッチャー"
+  | "ファースト"
+  | "セカンド"
+  | "サード"
+  | "ショート"
+  | "レフト"
+  | "センター"
+  | "ライト"
 
 type AtBat = {
   id: string
   batterId: string
   pitcherId: string
   result: AtBatResult
+  direction?: BattedBallDirection
+  rbi: number
   inning: number
   outs: number
   isTopInning: boolean
@@ -130,6 +145,8 @@ export default function GameDetailPage() {
   const [teams, setTeams] = useState<Team[]>([])
   const [currentGame, setCurrentGame] = useState<GameState | null>(null)
   const [currentResult, setCurrentResult] = useState<AtBatResult | "">("")
+  const [currentDirection, setCurrentDirection] = useState<BattedBallDirection | "">("")
+  const [currentRbi, setCurrentRbi] = useState<number>(0)
 
   // ローカルストレージからデータを読み込む
   useEffect(() => {
@@ -169,7 +186,7 @@ export default function GameDetailPage() {
   const recordAtBat = (result: AtBatResult) => {
     if (!currentGame) return
 
-    const isOut = ["三振", "ゴロアウト", "フライアウト", "ライナーアウト"].includes(result)
+    const isOut = ["三振", "ゴロアウト", "フライアウト", "ライナーアウト", "併殺打", "三重殺"].includes(result)
     const isRun = ["本塁打"].includes(result)
 
     // 現在の打者を取得
@@ -192,6 +209,8 @@ export default function GameDetailPage() {
       batterId: currentBatter.id,
       pitcherId: currentPitcherId,
       result,
+      direction: currentDirection || undefined,
+      rbi: currentRbi,
       inning: currentGame.currentInning,
       outs: currentGame.outs,
       isTopInning: currentGame.isTopInning,
@@ -258,6 +277,8 @@ export default function GameDetailPage() {
 
     // 結果をリセット
     setCurrentResult("")
+    setCurrentDirection("")
+    setCurrentRbi(0)
 
     toast({
       title: "記録完了",
@@ -335,6 +356,19 @@ export default function GameDetailPage() {
     "ゴロアウト",
     "フライアウト",
     "ライナーアウト",
+  ]
+
+  // 打球方向オプション
+  const directionOptions: BattedBallDirection[] = [
+    "ピッチャー",
+    "キャッチャー",
+    "ファースト",
+    "セカンド",
+    "サード",
+    "ショート",
+    "レフト",
+    "センター",
+    "ライト",
   ]
 
   const currentBatter = getCurrentBatter()
@@ -474,6 +508,40 @@ export default function GameDetailPage() {
                     </Select>
                   </div>
 
+                  {currentResult && !["四球", "死球", "三振"].includes(currentResult) && (
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">打球方向</label>
+                      <Select value={currentDirection} onValueChange={(value) => setCurrentDirection(value as BattedBallDirection)}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="方向を選択" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {directionOptions.map((direction) => (
+                            <SelectItem key={direction} value={direction}>
+                              {direction}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">打点</label>
+                    <Select value={currentRbi.toString()} onValueChange={(value) => setCurrentRbi(parseInt(value))}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="打点を選択" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {[0, 1, 2, 3, 4].map((rbi) => (
+                          <SelectItem key={rbi} value={rbi.toString()}>
+                            {rbi}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
                   <Button
                     className="w-full"
                     onClick={() => currentResult && recordAtBat(currentResult as AtBatResult)}
@@ -512,7 +580,11 @@ export default function GameDetailPage() {
                               {atBat.inning}回{atBat.isTopInning ? "表" : "裏"}
                             </span>
                           </div>
-                          <div className="font-bold">{atBat.result}</div>
+                          <div className="font-bold">
+                            {atBat.result}
+                            {atBat.direction && ` (${atBat.direction})`}
+                            {atBat.rbi > 0 && ` ${atBat.rbi}打点`}
+                          </div>
                         </div>
                         <div className="text-sm text-muted-foreground">
                           投手: {getPlayerName(pitcherTeamId, atBat.pitcherId)}
