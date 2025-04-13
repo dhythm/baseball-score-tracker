@@ -165,6 +165,15 @@ export default function GamesPage() {
     }
   }, [awayTeamId])
 
+  // 打順の追加
+  const addLineupSpot = (isHome: boolean) => {
+    if (isHome) {
+      setHomeLineup([...homeLineup, { playerId: "", position: "" }])
+    } else {
+      setAwayLineup([...awayLineup, { playerId: "", position: "" }])
+    }
+  }
+
   // 打順とポジションの更新
   const updateLineup = (isHome: boolean, index: number, field: "playerId" | "position", value: string) => {
     if (isHome) {
@@ -524,6 +533,14 @@ export default function GamesPage() {
                           </Select>
                         </div>
                       ))}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => addLineupSpot(true)}
+                        className="w-full mt-2"
+                      >
+                        打順を追加
+                      </Button>
                     </div>
                   )}
 
@@ -599,6 +616,14 @@ export default function GamesPage() {
                           </Select>
                         </div>
                       ))}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => addLineupSpot(false)}
+                        className="w-full mt-2"
+                      >
+                        打順を追加
+                      </Button>
                     </div>
                   )}
 
