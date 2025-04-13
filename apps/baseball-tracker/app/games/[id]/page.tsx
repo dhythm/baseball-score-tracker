@@ -450,7 +450,7 @@ export default function GameDetailPage() {
 
     // アウトの処理
     if (isOut) {
-      newOuts += 1
+      newOuts += result === "併殺打" ? 2 : result === "三重殺" ? 3 : 1
     }
 
     // 得点の処理
@@ -615,6 +615,8 @@ export default function GameDetailPage() {
     "ゴロアウト",
     "フライアウト",
     "ライナーアウト",
+    "併殺打",
+    "三重殺",
   ]
 
   // 打球方向オプション
