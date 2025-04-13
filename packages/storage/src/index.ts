@@ -61,6 +61,16 @@ export type Game = {
     home: number;
     away: number;
   };
+  lineup: {
+    home: {
+      playerId: string;
+      position: string;
+    }[];
+    away: {
+      playerId: string;
+      position: string;
+    }[];
+  };
 };
 
 interface StorageAdapter {

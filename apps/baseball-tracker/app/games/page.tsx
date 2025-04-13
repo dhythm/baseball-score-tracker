@@ -70,6 +70,16 @@ type GameState = {
     home: number
     away: number
   }
+  lineup: {
+    home: {
+      playerId: string
+      position: string
+    }[]
+    away: {
+      playerId: string
+      position: string
+    }[]
+  }
 }
 
 const storage = new Storage()
@@ -85,6 +95,8 @@ export default function GamesPage() {
   const [awayTeamId, setAwayTeamId] = useState("")
   const [homePitcherId, setHomePitcherId] = useState("")
   const [awayPitcherId, setAwayPitcherId] = useState("")
+  const [homeLineup, setHomeLineup] = useState<{ playerId: string; position: string }[]>([])
+  const [awayLineup, setAwayLineup] = useState<{ playerId: string; position: string }[]>([])
 
   // 現在の打者と結果
   const [currentResult, setCurrentResult] = useState<AtBatResult | "">("")
@@ -136,6 +148,36 @@ export default function GamesPage() {
     return player ? player.name : "不明な選手"
   }
 
+  // 打順とポジションの初期化
+  const initializeLineup = (teamId: string) => {
+    return Array(9).fill({ playerId: "", position: "" })
+  }
+
+  useEffect(() => {
+    if (homeTeamId) {
+      setHomeLineup(initializeLineup(homeTeamId))
+    }
+  }, [homeTeamId])
+
+  useEffect(() => {
+    if (awayTeamId) {
+      setAwayLineup(initializeLineup(awayTeamId))
+    }
+  }, [awayTeamId])
+
+  // 打順とポジションの更新
+  const updateLineup = (isHome: boolean, index: number, field: "playerId" | "position", value: string) => {
+    if (isHome) {
+      const newLineup = [...homeLineup]
+      newLineup[index] = { ...newLineup[index], [field]: value }
+      setHomeLineup(newLineup)
+    } else {
+      const newLineup = [...awayLineup]
+      newLineup[index] = { ...newLineup[index], [field]: value }
+      setAwayLineup(newLineup)
+    }
+  }
+
   // 新しいゲームを作成
   const createNewGame = () => {
     if (!homeTeamId || !awayTeamId || !homePitcherId || !awayPitcherId) {
@@ -151,6 +193,19 @@ export default function GamesPage() {
       toast({
         title: "エラー",
         description: "ホームチームとアウェイチームは異なるチームを選択してください",
+        variant: "destructive",
+      })
+      return
+    }
+
+    // 打順が完全に設定されているか確認
+    const isHomeLineupComplete = homeLineup.every((player) => player.playerId && player.position)
+    const isAwayLineupComplete = awayLineup.every((player) => player.playerId && player.position)
+
+    if (!isHomeLineupComplete || !isAwayLineupComplete) {
+      toast({
+        title: "エラー",
+        description: "すべての打順とポジションを設定してください",
         variant: "destructive",
       })
       return
@@ -174,6 +229,10 @@ export default function GamesPage() {
       currentBatterIndex: {
         home: 0,
         away: 0,
+      },
+      lineup: {
+        home: homeLineup,
+        away: awayLineup,
       },
     }
 
@@ -427,6 +486,47 @@ export default function GamesPage() {
                     </div>
                   )}
 
+                  {homeTeamId && (
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">ホームチーム打順</label>
+                      {homeLineup.map((player, index) => (
+                        <div key={index} className="grid grid-cols-3 gap-2">
+                          <div className="text-sm font-medium">{index + 1}番</div>
+                          <Select
+                            value={player.playerId}
+                            onValueChange={(value) => updateLineup(true, index, "playerId", value)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="選手を選択" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {getTeamBatters(homeTeamId).map((batter) => (
+                                <SelectItem key={batter.id} value={batter.id}>
+                                  {batter.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Select
+                            value={player.position}
+                            onValueChange={(value) => updateLineup(true, index, "position", value)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="ポジション" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {["投", "捕", "一", "二", "三", "遊", "左", "中", "右", "指"].map((pos) => (
+                                <SelectItem key={pos} value={pos}>
+                                  {pos}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
                   <div className="space-y-2">
                     <label className="text-sm font-medium">アウェイチーム</label>
                     <Select value={awayTeamId} onValueChange={setAwayTeamId}>
@@ -458,6 +558,47 @@ export default function GamesPage() {
                           ))}
                         </SelectContent>
                       </Select>
+                    </div>
+                  )}
+
+                  {awayTeamId && (
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">アウェイチーム打順</label>
+                      {awayLineup.map((player, index) => (
+                        <div key={index} className="grid grid-cols-3 gap-2">
+                          <div className="text-sm font-medium">{index + 1}番</div>
+                          <Select
+                            value={player.playerId}
+                            onValueChange={(value) => updateLineup(false, index, "playerId", value)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="選手を選択" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {getTeamBatters(awayTeamId).map((batter) => (
+                                <SelectItem key={batter.id} value={batter.id}>
+                                  {batter.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Select
+                            value={player.position}
+                            onValueChange={(value) => updateLineup(false, index, "position", value)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="ポジション" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {["投", "捕", "一", "二", "三", "遊", "左", "中", "右", "指"].map((pos) => (
+                                <SelectItem key={pos} value={pos}>
+                                  {pos}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      ))}
                     </div>
                   )}
 
