@@ -757,22 +757,22 @@ export default function GameDetailPage() {
                       <table className="w-full">
                         <thead>
                           <tr className="border-b">
-                            <th className="text-left p-2">打順</th>
-                            <th className="text-left p-2">選手</th>
-                            <th className="text-left p-2">ポジション</th>
+                            <th className="text-left p-2 w-16">打順</th>
+                            <th className="text-left p-2 w-40">選手</th>
+                            <th className="text-left p-2 w-24">ポジション</th>
                             {Array.from({ length: maxInning }, (_, i) => (
-                              <th key={i + 1} className="text-center p-2">{i + 1}</th>
+                              <th key={i + 1} className="text-center p-2 w-16">{i + 1}</th>
                             ))}
                           </tr>
                         </thead>
                         <tbody>
                           {lineup.map((spot, index) => (
                             <tr key={spot.playerId} className="border-b">
-                              <td className="p-2">{index + 1}</td>
-                              <td className="p-2">{getPlayerName(teamId, spot.playerId)}</td>
-                              <td className="p-2">{spot.position}</td>
+                              <td className="p-2 w-16">{index + 1}</td>
+                              <td className="p-2 w-40">{getPlayerName(teamId, spot.playerId)}</td>
+                              <td className="p-2 w-24">{spot.position}</td>
                               {Array.from({ length: maxInning }, (_, i) => (
-                                <td key={i + 1} className="text-center p-2">
+                                <td key={i + 1} className="text-center p-2 w-16">
                                   {inningResults.get(spot.playerId)?.get(i + 1) || ''}
                                 </td>
                               ))}
