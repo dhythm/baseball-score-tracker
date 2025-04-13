@@ -303,6 +303,9 @@ export default function GamesPage() {
       title: "試合開始",
       description: `${getTeamName(awayTeamId)} vs ${getTeamName(homeTeamId)}の試合が開始されました`,
     })
+
+    // 新しいゲームの詳細ページに遷移
+    window.location.href = `/games/${newGame.id}`
   }
 
   // 打席結果を記録
@@ -706,9 +709,11 @@ export default function GamesPage() {
                         {game.isComplete ? (
                           <span className="text-xs bg-muted px-2 py-1 rounded">終了</span>
                         ) : (
-                          <Button size="sm" variant="outline" onClick={() => setCurrentGame(game)}>
-                            続行
-                          </Button>
+                          <Link href={`/games/${game.id}`}>
+                            <Button size="sm" variant="outline">
+                              続行
+                            </Button>
+                          </Link>
                         )}
                       </div>
                       <div className="text-sm">
