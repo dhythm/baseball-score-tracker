@@ -6,10 +6,106 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
-import { PlusCircle } from "lucide-react"
+import { PlusCircle, GripVertical } from "lucide-react"
 import { Storage, Player, Team, AtBat, AtBatResult, Game } from "@packages/storage"
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core"
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable"
+import { CSS } from "@dnd-kit/utilities"
 
 const storage = new Storage()
+
+// SortableLineupItemコンポーネントを追加
+function SortableLineupItem({
+  id,
+  index,
+  player,
+  teamId,
+  getTeamBatters,
+  updateLineup,
+  isHome,
+}: {
+  id: string
+  index: number
+  player: { playerId: string; position: string }
+  teamId: string
+  getTeamBatters: (teamId: string) => Player[]
+  updateLineup: (isHome: boolean, index: number, field: "playerId" | "position", value: string) => void
+  isHome: boolean
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  }
+
+  return (
+    <div 
+      ref={setNodeRef} 
+      style={style} 
+      className={`grid grid-cols-[auto_1fr_1fr_1fr] gap-2 items-center p-2 rounded-md hover:bg-accent/50 ${isDragging ? 'bg-accent/50 shadow-lg' : ''}`}
+    >
+      <button 
+        {...attributes} 
+        {...listeners}
+        className="touch-none p-1 hover:bg-accent rounded-md transition-colors"
+      >
+        <GripVertical className="h-4 w-4 text-muted-foreground" />
+      </button>
+      <div className="text-sm font-medium">{index + 1}番</div>
+      <Select
+        value={player.playerId}
+        onValueChange={(value) => updateLineup(isHome, index, "playerId", value)}
+      >
+        <SelectTrigger>
+          <SelectValue placeholder="選手を選択" />
+        </SelectTrigger>
+        <SelectContent>
+          {getTeamBatters(teamId).map((batter) => (
+            <SelectItem key={batter.id} value={batter.id}>
+              {batter.name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <Select
+        value={player.position}
+        onValueChange={(value) => updateLineup(isHome, index, "position", value)}
+      >
+        <SelectTrigger>
+          <SelectValue placeholder="ポジション" />
+        </SelectTrigger>
+        <SelectContent>
+          {["投", "捕", "一", "二", "三", "遊", "左", "中", "右", "指"].map((pos) => (
+            <SelectItem key={pos} value={pos}>
+              {pos}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  )
+}
 
 export default function GamesPage() {
   const { toast } = useToast()
@@ -23,6 +119,14 @@ export default function GamesPage() {
   const [awayPitcherId, setAwayPitcherId] = useState("")
   const [homeLineup, setHomeLineup] = useState<{ playerId: string; position: string }[]>([])
   const [awayLineup, setAwayLineup] = useState<{ playerId: string; position: string }[]>([])
+
+  // センサーの設定
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  )
 
   // ローカルストレージからデータを読み込む
   useEffect(() => {
@@ -99,6 +203,65 @@ export default function GamesPage() {
       newLineup[index] = { ...newLineup[index], [field]: value }
       setAwayLineup(newLineup)
     }
+  }
+
+  // ドラッグ終了時のハンドラーを追加
+  const handleDragEnd = (event: any, isHome: boolean) => {
+    const { active, over } = event
+
+    if (active.id !== over.id) {
+      const oldIndex = parseInt(active.id)
+      const newIndex = parseInt(over.id)
+
+      if (isHome) {
+        setHomeLineup((items) => arrayMove(items, oldIndex, newIndex))
+      } else {
+        setAwayLineup((items) => arrayMove(items, oldIndex, newIndex))
+      }
+    }
+  }
+
+  // 打順表示部分を更新
+  const renderLineup = (isHome: boolean) => {
+    const lineup = isHome ? homeLineup : awayLineup
+    const teamId = isHome ? homeTeamId : awayTeamId
+
+    return (
+      <div className="space-y-2">
+        <label className="text-sm font-medium">{isHome ? "後攻" : "先攻"}チーム打順</label>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={(event) => handleDragEnd(event, isHome)}
+        >
+          <SortableContext
+            items={lineup.map((_, index) => index.toString())}
+            strategy={verticalListSortingStrategy}
+          >
+            {lineup.map((player, index) => (
+              <SortableLineupItem
+                key={index}
+                id={index.toString()}
+                index={index}
+                player={player}
+                teamId={teamId}
+                getTeamBatters={getTeamBatters}
+                updateLineup={updateLineup}
+                isHome={isHome}
+              />
+            ))}
+          </SortableContext>
+        </DndContext>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => addLineupSpot(isHome)}
+          className="w-full mt-2"
+        >
+          打順を追加
+        </Button>
+      </div>
+    )
   }
 
   // 新しいゲームを作成
@@ -278,54 +441,7 @@ export default function GamesPage() {
                   </div>
                 )}
 
-                {awayTeamId && (
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">先攻チーム打順</label>
-                    {awayLineup.map((player, index) => (
-                      <div key={index} className="grid grid-cols-3 gap-2">
-                        <div className="text-sm font-medium">{index + 1}番</div>
-                        <Select
-                          value={player.playerId}
-                          onValueChange={(value) => updateLineup(false, index, "playerId", value)}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="選手を選択" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {getTeamBatters(awayTeamId).map((batter) => (
-                              <SelectItem key={batter.id} value={batter.id}>
-                                {batter.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <Select
-                          value={player.position}
-                          onValueChange={(value) => updateLineup(false, index, "position", value)}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="ポジション" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {["投", "捕", "一", "二", "三", "遊", "左", "中", "右", "指"].map((pos) => (
-                              <SelectItem key={pos} value={pos}>
-                                {pos}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    ))}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => addLineupSpot(false)}
-                      className="w-full mt-2"
-                    >
-                      打順を追加
-                    </Button>
-                  </div>
-                )}
+                {awayTeamId && renderLineup(false)}
 
                 <div className="space-y-2">
                   <label className="text-sm font-medium">後攻チーム</label>
@@ -361,54 +477,7 @@ export default function GamesPage() {
                   </div>
                 )}
 
-                {homeTeamId && (
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">後攻チーム打順</label>
-                    {homeLineup.map((player, index) => (
-                      <div key={index} className="grid grid-cols-3 gap-2">
-                        <div className="text-sm font-medium">{index + 1}番</div>
-                        <Select
-                          value={player.playerId}
-                          onValueChange={(value) => updateLineup(true, index, "playerId", value)}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="選手を選択" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {getTeamBatters(homeTeamId).map((batter) => (
-                              <SelectItem key={batter.id} value={batter.id}>
-                                {batter.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <Select
-                          value={player.position}
-                          onValueChange={(value) => updateLineup(true, index, "position", value)}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="ポジション" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {["投", "捕", "一", "二", "三", "遊", "左", "中", "右", "指"].map((pos) => (
-                              <SelectItem key={pos} value={pos}>
-                                {pos}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    ))}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => addLineupSpot(true)}
-                      className="w-full mt-2"
-                    >
-                      打順を追加
-                    </Button>
-                  </div>
-                )}
+                {homeTeamId && renderLineup(true)}
 
                 <Button
                   className="w-full"
