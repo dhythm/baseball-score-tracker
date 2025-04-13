@@ -115,7 +115,7 @@ export default function GamesPage() {
     if (homeTeamId === awayTeamId) {
       toast({
         title: "エラー",
-        description: "ホームチームとアウェイチームは異なるチームを選択してください",
+        description: "後攻チームと先攻チームは異なるチームを選択してください",
         variant: "destructive",
       })
       return
@@ -143,7 +143,7 @@ export default function GamesPage() {
     if (hasHomeDuplicatePlayer) {
       toast({
         title: "エラー",
-        description: "ホームチームの打順に同じ選手が複数回選択されています",
+        description: "後攻チームの打順に同じ選手が複数回選択されています",
         variant: "destructive",
       })
       return
@@ -152,7 +152,7 @@ export default function GamesPage() {
     if (hasHomeDuplicatePosition) {
       toast({
         title: "エラー",
-        description: "ホームチームの打順に同じポジション（指名打者以外）が複数回選択されています",
+        description: "後攻チームの打順に同じポジション（指名打者以外）が複数回選択されています",
         variant: "destructive",
       })
       return
@@ -167,7 +167,7 @@ export default function GamesPage() {
     if (hasAwayDuplicatePlayer) {
       toast({
         title: "エラー",
-        description: "アウェイチームの打順に同じ選手が複数回選択されています",
+        description: "先攻チームの打順に同じ選手が複数回選択されています",
         variant: "destructive",
       })
       return
@@ -176,7 +176,7 @@ export default function GamesPage() {
     if (hasAwayDuplicatePosition) {
       toast({
         title: "エラー",
-        description: "アウェイチームの打順に同じポジション（指名打者以外）が複数回選択されています",
+        description: "先攻チームの打順に同じポジション（指名打者以外）が複数回選択されています",
         variant: "destructive",
       })
       return
@@ -245,93 +245,10 @@ export default function GamesPage() {
             ) : (
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">ホームチーム</label>
-                  <Select value={homeTeamId} onValueChange={setHomeTeamId}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="ホームチームを選択" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {teams.map((team) => (
-                        <SelectItem key={team.id} value={team.id}>
-                          {team.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {homeTeamId && (
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">ホーム先発投手</label>
-                    <Select value={homePitcherId} onValueChange={setHomePitcherId}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="投手を選択" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {getTeamPitchers(homeTeamId).map((pitcher) => (
-                          <SelectItem key={pitcher.id} value={pitcher.id}>
-                            {pitcher.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-
-                {homeTeamId && (
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">ホームチーム打順</label>
-                    {homeLineup.map((player, index) => (
-                      <div key={index} className="grid grid-cols-3 gap-2">
-                        <div className="text-sm font-medium">{index + 1}番</div>
-                        <Select
-                          value={player.playerId}
-                          onValueChange={(value) => updateLineup(true, index, "playerId", value)}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="選手を選択" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {getTeamBatters(homeTeamId).map((batter) => (
-                              <SelectItem key={batter.id} value={batter.id}>
-                                {batter.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <Select
-                          value={player.position}
-                          onValueChange={(value) => updateLineup(true, index, "position", value)}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="ポジション" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {["投", "捕", "一", "二", "三", "遊", "左", "中", "右", "指"].map((pos) => (
-                              <SelectItem key={pos} value={pos}>
-                                {pos}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    ))}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => addLineupSpot(true)}
-                      className="w-full mt-2"
-                    >
-                      打順を追加
-                    </Button>
-                  </div>
-                )}
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">アウェイチーム</label>
+                  <label className="text-sm font-medium">先攻チーム</label>
                   <Select value={awayTeamId} onValueChange={setAwayTeamId}>
                     <SelectTrigger>
-                      <SelectValue placeholder="アウェイチームを選択" />
+                      <SelectValue placeholder="先攻チームを選択" />
                     </SelectTrigger>
                     <SelectContent>
                       {teams.map((team) => (
@@ -345,7 +262,7 @@ export default function GamesPage() {
 
                 {awayTeamId && (
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">アウェイ先発投手</label>
+                    <label className="text-sm font-medium">先攻先発投手</label>
                     <Select value={awayPitcherId} onValueChange={setAwayPitcherId}>
                       <SelectTrigger>
                         <SelectValue placeholder="投手を選択" />
@@ -363,7 +280,7 @@ export default function GamesPage() {
 
                 {awayTeamId && (
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">アウェイチーム打順</label>
+                    <label className="text-sm font-medium">先攻チーム打順</label>
                     {awayLineup.map((player, index) => (
                       <div key={index} className="grid grid-cols-3 gap-2">
                         <div className="text-sm font-medium">{index + 1}番</div>
@@ -403,6 +320,89 @@ export default function GamesPage() {
                       variant="outline"
                       size="sm"
                       onClick={() => addLineupSpot(false)}
+                      className="w-full mt-2"
+                    >
+                      打順を追加
+                    </Button>
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">後攻チーム</label>
+                  <Select value={homeTeamId} onValueChange={setHomeTeamId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="後攻チームを選択" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {teams.map((team) => (
+                        <SelectItem key={team.id} value={team.id}>
+                          {team.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {homeTeamId && (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">後攻先発投手</label>
+                    <Select value={homePitcherId} onValueChange={setHomePitcherId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="投手を選択" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {getTeamPitchers(homeTeamId).map((pitcher) => (
+                          <SelectItem key={pitcher.id} value={pitcher.id}>
+                            {pitcher.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {homeTeamId && (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">後攻チーム打順</label>
+                    {homeLineup.map((player, index) => (
+                      <div key={index} className="grid grid-cols-3 gap-2">
+                        <div className="text-sm font-medium">{index + 1}番</div>
+                        <Select
+                          value={player.playerId}
+                          onValueChange={(value) => updateLineup(true, index, "playerId", value)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="選手を選択" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {getTeamBatters(homeTeamId).map((batter) => (
+                              <SelectItem key={batter.id} value={batter.id}>
+                                {batter.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Select
+                          value={player.position}
+                          onValueChange={(value) => updateLineup(true, index, "position", value)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="ポジション" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {["投", "捕", "一", "二", "三", "遊", "左", "中", "右", "指"].map((pos) => (
+                              <SelectItem key={pos} value={pos}>
+                                {pos}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    ))}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => addLineupSpot(true)}
                       className="w-full mt-2"
                     >
                       打順を追加
