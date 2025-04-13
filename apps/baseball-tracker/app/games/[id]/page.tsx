@@ -82,6 +82,46 @@ type GameState = {
   }
 }
 
+// イニングごとの得点とスタッツを計算するヘルパー関数
+const calculateGameStats = (game: GameState) => {
+  const defaultInnings = 9
+  const maxInning = Math.max(defaultInnings, game.currentInning)
+  
+  const stats = {
+    away: {
+      scores: Array(maxInning).fill(0),
+      hits: 0,
+      errors: 0
+    },
+    home: {
+      scores: Array(maxInning).fill(0),
+      hits: 0,
+      errors: 0
+    }
+  }
+
+  game.atBats.forEach(atBat => {
+    const team = atBat.isTopInning ? "away" : "home"
+    
+    // 得点の計算
+    if (atBat.result === "本塁打") {
+      stats[team].scores[atBat.inning - 1]++
+    }
+
+    // ヒット数の計算
+    if (["安打", "二塁打", "三塁打", "本塁打"].includes(atBat.result)) {
+      stats[team].hits++
+    }
+
+    // エラーの計算
+    if (atBat.result === "失策") {
+      stats[atBat.isTopInning ? "home" : "away"].errors++
+    }
+  })
+
+  return stats
+}
+
 const storage = new Storage()
 
 export default function GameDetailPage() {
@@ -337,6 +377,50 @@ export default function GameDetailPage() {
             </div>
           </CardHeader>
           <CardContent>
+            {/* スコアボードを追加 */}
+            <div className="overflow-x-auto mb-6">
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="border-b">
+                    <th className="p-2 text-left">チーム</th>
+                    {Array.from({ length: Math.max(9, currentGame.currentInning) }, (_, i) => (
+                      <th key={i + 1} className="p-2 text-center w-10">{i + 1}</th>
+                    ))}
+                    <th className="p-2 text-center w-10">R</th>
+                    <th className="p-2 text-center w-10">H</th>
+                    <th className="p-2 text-center w-10">E</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {["away", "home"].map((team) => {
+                    const stats = calculateGameStats(currentGame)
+                    const teamStats = stats[team as keyof typeof stats]
+                    const totalScore = team === "away" ? currentGame.awayScore : currentGame.homeScore
+                    
+                    return (
+                      <tr key={team} className="border-b">
+                        <td className="p-2 font-medium">
+                          {getTeamName(team === "away" ? currentGame.awayTeamId : currentGame.homeTeamId)}
+                        </td>
+                        {teamStats.scores.map((score, i) => (
+                          <td key={i} className="p-2 text-center">
+                            {i < currentGame.currentInning - 1 || 
+                             (i === currentGame.currentInning - 1 && 
+                              (!currentGame.isTopInning || team === "away")) 
+                              ? score 
+                              : ""}
+                          </td>
+                        ))}
+                        <td className="p-2 text-center font-bold">{totalScore}</td>
+                        <td className="p-2 text-center">{teamStats.hits}</td>
+                        <td className="p-2 text-center">{teamStats.errors}</td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+
             <div className="grid grid-cols-3 gap-4 mb-6">
               <div className="text-center">
                 <div className="text-lg font-bold">{getTeamName(currentGame.awayTeamId)}</div>
