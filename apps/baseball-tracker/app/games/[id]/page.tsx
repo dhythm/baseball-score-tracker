@@ -315,6 +315,16 @@ const calculatePitcherStats = (game: GameState, teamId: string, teams: Team[]) =
   return pitcherStats
 }
 
+// 打席結果の色を決定するヘルパー関数
+const getAtBatResultColor = (result: string): string => {
+  // ヒット系の結果を抽出（括弧付きの打点情報がある場合も考慮）
+  const baseResult = result.split('(')[0]
+  if (["安打", "二塁打", "三塁打", "本塁打"].includes(baseResult)) {
+    return "text-red-500"
+  }
+  return ""
+}
+
 // イニングごとの打席結果を計算するヘルパー関数
 const calculateInningResults = (game: GameState, teamId: string, teams: Team[]) => {
   const results = new Map<string, Map<number, string>>()
@@ -1037,7 +1047,7 @@ export default function GameDetailPage() {
                               <td className="p-2 w-40">{getPlayerName(teamId, spot.playerId)}</td>
                               <td className="p-2 w-24">{spot.position}</td>
                               {Array.from({ length: maxInning }, (_, i) => (
-                                <td key={i + 1} className="text-center p-2 w-16">
+                                <td key={i + 1} className={`text-center p-2 w-16 ${getAtBatResultColor(inningResults.get(spot.playerId)?.get(i + 1) || '')}`}>
                                   {inningResults.get(spot.playerId)?.get(i + 1) || ''}
                                 </td>
                               ))}
