@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { PlusCircle, Trash2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { Storage, Team as StorageTeam } from "@packages/storage"
 
 // 型定義
 type Player = {
@@ -25,13 +26,14 @@ type Team = {
   players: Player[]
 }
 
+const storage = new Storage()
+
 export default function TeamsPage() {
   const { toast } = useToast()
   const [teams, setTeams] = useState<Team[]>(() => {
     // ローカルストレージから読み込み
     if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("baseball-teams")
-      return saved ? JSON.parse(saved) : []
+      return storage.getTeams()
     }
     return []
   })
@@ -48,7 +50,7 @@ export default function TeamsPage() {
   // チームを保存
   const saveTeams = (updatedTeams: Team[]) => {
     setTeams(updatedTeams)
-    localStorage.setItem("baseball-teams", JSON.stringify(updatedTeams))
+    storage.setTeams(updatedTeams)
   }
 
   // チームを追加

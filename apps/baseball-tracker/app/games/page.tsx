@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 import { PlusCircle } from "lucide-react"
+import { Storage, Team as StorageTeam } from "@packages/storage"
 
 // 型定義
 type Player = {
@@ -71,6 +72,8 @@ type GameState = {
   }
 }
 
+const storage = new Storage()
+
 export default function GamesPage() {
   const { toast } = useToast()
   const [teams, setTeams] = useState<Team[]>([])
@@ -89,15 +92,15 @@ export default function GamesPage() {
   // ローカルストレージからデータを読み込む
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const savedTeams = localStorage.getItem("baseball-teams")
-      const savedGames = localStorage.getItem("baseball-games")
+      const savedTeams = storage.getTeams()
+      const savedGames = storage.getGames()
 
       if (savedTeams) {
-        setTeams(JSON.parse(savedTeams))
+        setTeams(savedTeams)
       }
 
       if (savedGames) {
-        setGames(JSON.parse(savedGames))
+        setGames(savedGames)
       }
     }
   }, [])
@@ -176,7 +179,7 @@ export default function GamesPage() {
 
     const updatedGames = [...games, newGame]
     setGames(updatedGames)
-    localStorage.setItem("baseball-games", JSON.stringify(updatedGames))
+    storage.setGames(updatedGames)
 
     setCurrentGame(newGame)
 
@@ -282,7 +285,7 @@ export default function GamesPage() {
 
     setGames(updatedGames)
     setCurrentGame(updatedGame)
-    localStorage.setItem("baseball-games", JSON.stringify(updatedGames))
+    storage.setGames(updatedGames)
 
     // 結果をリセット
     setCurrentResult("")
@@ -307,7 +310,7 @@ export default function GamesPage() {
 
     setGames(updatedGames)
     setCurrentGame(null)
-    localStorage.setItem("baseball-games", JSON.stringify(updatedGames))
+    storage.setGames(updatedGames)
 
     toast({
       title: "試合終了",
