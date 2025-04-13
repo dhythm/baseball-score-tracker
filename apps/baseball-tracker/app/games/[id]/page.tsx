@@ -6,6 +6,7 @@ import { useParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/hooks/use-toast"
 import { Storage } from "@packages/storage"
 
@@ -137,6 +138,177 @@ const calculateGameStats = (game: GameState) => {
   })
 
   return stats
+}
+
+// 打者成績を計算するヘルパー関数
+const calculateBatterStats = (game: GameState, teamId: string, teams: Team[]) => {
+  const batterStats = new Map<string, {
+    atBats: number,
+    hits: number,
+    doubles: number,
+    triples: number,
+    homeRuns: number,
+    walks: number,
+    rbi: number,
+    strikeouts: number
+  }>()
+
+  // チームの打者の初期化
+  const team = teams.find((t: Team) => t.id === teamId)
+  team?.players.forEach((player: Player) => {
+    batterStats.set(player.id, {
+      atBats: 0,
+      hits: 0,
+      doubles: 0,
+      triples: 0,
+      homeRuns: 0,
+      walks: 0,
+      rbi: 0,
+      strikeouts: 0
+    })
+  })
+
+  // 打席結果の集計
+  game.atBats.forEach(atBat => {
+    const isTeamAtBat = (atBat.isTopInning && teamId === game.awayTeamId) ||
+                       (!atBat.isTopInning && teamId === game.homeTeamId)
+    
+    if (!isTeamAtBat) return
+
+    const playerStats = batterStats.get(atBat.batterId)
+    if (!playerStats) return
+
+    // 打点の加算
+    playerStats.rbi += atBat.rbi
+
+    switch (atBat.result) {
+      case "安打":
+        playerStats.hits++
+        playerStats.atBats++
+        break
+      case "二塁打":
+        playerStats.hits++
+        playerStats.doubles++
+        playerStats.atBats++
+        break
+      case "三塁打":
+        playerStats.hits++
+        playerStats.triples++
+        playerStats.atBats++
+        break
+      case "本塁打":
+        playerStats.hits++
+        playerStats.homeRuns++
+        playerStats.atBats++
+        break
+      case "四球":
+      case "死球":
+        playerStats.walks++
+        break
+      case "三振":
+        playerStats.strikeouts++
+        playerStats.atBats++
+        break
+      case "ゴロアウト":
+      case "フライアウト":
+      case "ライナーアウト":
+        playerStats.atBats++
+        break
+    }
+  })
+
+  return batterStats
+}
+
+// 投手成績を計算するヘルパー関数
+const calculatePitcherStats = (game: GameState, teamId: string, teams: Team[]) => {
+  const pitcherStats = new Map<string, {
+    inningsPitched: number,
+    hits: number,
+    runs: number,
+    strikeouts: number,
+    walks: number
+  }>()
+
+  // チームの投手の初期化
+  const team = teams.find((t: Team) => t.id === teamId)
+  team?.players.forEach((player: Player) => {
+    if (player.type === "pitcher" || player.type === "both") {
+      pitcherStats.set(player.id, {
+        inningsPitched: 0,
+        hits: 0,
+        runs: 0,
+        strikeouts: 0,
+        walks: 0
+      })
+    }
+  })
+
+  // 投手成績の集計
+  let currentOuts = 0
+
+  game.atBats.forEach(atBat => {
+    const isTeamPitching = (atBat.isTopInning && teamId === game.homeTeamId) ||
+                          (!atBat.isTopInning && teamId === game.awayTeamId)
+    
+    if (!isTeamPitching) return
+
+    const playerStats = pitcherStats.get(atBat.pitcherId)
+    if (!playerStats) return
+
+    switch (atBat.result) {
+      case "安打":
+      case "二塁打":
+      case "三塁打":
+      case "本塁打":
+        playerStats.hits++
+        break
+      case "四球":
+      case "死球":
+        playerStats.walks++
+        break
+      case "三振":
+        playerStats.strikeouts++
+        break
+    }
+
+    // アウトカウントの更新
+    if (["三振", "ゴロアウト", "フライアウト", "ライナーアウト"].includes(atBat.result)) {
+      currentOuts++
+      if (currentOuts === 3) {
+        playerStats.inningsPitched++
+        currentOuts = 0
+      }
+    }
+  })
+
+  return pitcherStats
+}
+
+// イニングごとの打席結果を計算するヘルパー関数
+const calculateInningResults = (game: GameState, teamId: string, teams: Team[]) => {
+  const results = new Map<string, Map<number, string>>()
+
+  // チームの選手の初期化
+  const lineup = teamId === game.homeTeamId ? game.lineup.home : game.lineup.away
+  lineup.forEach(spot => {
+    results.set(spot.playerId, new Map())
+  })
+
+  // 打席結果の集計
+  game.atBats.forEach(atBat => {
+    const isTeamAtBat = (atBat.isTopInning && teamId === game.awayTeamId) ||
+                       (!atBat.isTopInning && teamId === game.homeTeamId)
+    
+    if (!isTeamAtBat) return
+
+    const playerResults = results.get(atBat.batterId)
+    if (!playerResults) return
+
+    playerResults.set(atBat.inning, atBat.result)
+  })
+
+  return { results, lineup }
 }
 
 const storage = new Storage()
@@ -559,45 +731,63 @@ export default function GameDetailPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>打席記録</CardTitle>
+            <CardTitle>打席結果</CardTitle>
           </CardHeader>
           <CardContent>
-            {currentGame.atBats.length === 0 ? (
-              <p className="text-center py-4 text-muted-foreground">まだ記録がありません</p>
-            ) : (
-              <div className="space-y-2">
-                {[...currentGame.atBats]
-                  .reverse()
-                  .slice(0, 10)
-                  .map((atBat) => {
-                    const teamId = atBat.isTopInning ? currentGame.awayTeamId : currentGame.homeTeamId
-                    const pitcherTeamId = atBat.isTopInning ? currentGame.homeTeamId : currentGame.awayTeamId
+            <Tabs defaultValue={currentGame.awayTeamId} className="space-y-4">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value={currentGame.awayTeamId}>
+                  {getTeamName(currentGame.awayTeamId)}
+                </TabsTrigger>
+                <TabsTrigger value={currentGame.homeTeamId}>
+                  {getTeamName(currentGame.homeTeamId)}
+                </TabsTrigger>
+              </TabsList>
+              {[currentGame.awayTeamId, currentGame.homeTeamId].map(teamId => {
+                const { results: inningResults, lineup } = calculateInningResults(currentGame, teamId, teams)
+                const maxInning = Math.max(
+                  9,
+                  ...Array.from(inningResults.values())
+                    .flatMap(playerResults => Array.from(playerResults.keys()))
+                )
 
-                    return (
-                      <div key={atBat.id} className="p-3 border rounded">
-                        <div className="flex justify-between items-center">
-                          <div>
-                            <span className="font-medium">{getPlayerName(teamId, atBat.batterId)}</span>
-                            <span className="text-muted-foreground ml-2">
-                              {atBat.inning}回{atBat.isTopInning ? "表" : "裏"}
-                            </span>
-                          </div>
-                          <div className="font-bold">
-                            {atBat.result}
-                            {atBat.direction && ` (${atBat.direction})`}
-                            {atBat.rbi > 0 && ` ${atBat.rbi}打点`}
-                          </div>
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          投手: {getPlayerName(pitcherTeamId, atBat.pitcherId)}
-                        </div>
-                      </div>
-                    )
-                  })}
-              </div>
-            )}
+                return (
+                  <TabsContent key={teamId} value={teamId}>
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead>
+                          <tr className="border-b">
+                            <th className="text-left p-2">打順</th>
+                            <th className="text-left p-2">選手</th>
+                            <th className="text-left p-2">ポジション</th>
+                            {Array.from({ length: maxInning }, (_, i) => (
+                              <th key={i + 1} className="text-center p-2">{i + 1}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {lineup.map((spot, index) => (
+                            <tr key={spot.playerId} className="border-b">
+                              <td className="p-2">{index + 1}</td>
+                              <td className="p-2">{getPlayerName(teamId, spot.playerId)}</td>
+                              <td className="p-2">{spot.position}</td>
+                              {Array.from({ length: maxInning }, (_, i) => (
+                                <td key={i + 1} className="text-center p-2">
+                                  {inningResults.get(spot.playerId)?.get(i + 1) || ''}
+                                </td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </TabsContent>
+                )
+              })}
+            </Tabs>
           </CardContent>
         </Card>
+
       </div>
     </div>
   )
