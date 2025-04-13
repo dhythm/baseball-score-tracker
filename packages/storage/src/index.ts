@@ -1,11 +1,13 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
+export type Position = "投手" | "捕手" | "一塁手" | "二塁手" | "三塁手" | "遊撃手" | "外野手";
+
 export type Player = {
   id: string;
   name: string;
   number: string;
-  position: string;
+  position: Position[];
   type: "pitcher" | "batter" | "both";
 };
 

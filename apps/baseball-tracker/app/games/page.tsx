@@ -7,87 +7,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 import { PlusCircle } from "lucide-react"
-import { Storage } from "@packages/storage"
-
-// 型定義
-type Player = {
-  id: string
-  name: string
-  number: string
-  position: string
-  type: "pitcher" | "batter" | "both"
-}
-
-type Team = {
-  id: string
-  name: string
-  players: Player[]
-}
-
-type AtBatResult =
-  | "安打"
-  | "二塁打"
-  | "三塁打"
-  | "本塁打"
-  | "四球"
-  | "死球"
-  | "犠打"
-  | "犠飛"
-  | "失策"
-  | "フィールダーチョイス"
-  | "三振"
-  | "ゴロアウト"
-  | "フライアウト"
-  | "ライナーアウト"
-
-type AtBat = {
-  id: string
-  batterId: string
-  pitcherId: string
-  result: AtBatResult
-  inning: number
-  outs: number
-  isTopInning: boolean
-  timestamp: number
-}
-
-type GameState = {
-  id: string
-  homeTeamId: string
-  awayTeamId: string
-  homePitcherId: string
-  awayPitcherId: string
-  currentInning: number
-  isTopInning: boolean
-  outs: number
-  homeScore: number
-  awayScore: number
-  atBats: AtBat[]
-  startTime: number
-  endTime: number | null
-  isComplete: boolean
-  currentBatterIndex: {
-    home: number
-    away: number
-  }
-  lineup: {
-    home: {
-      playerId: string
-      position: string
-    }[]
-    away: {
-      playerId: string
-      position: string
-    }[]
-  }
-}
+import { Storage, Player, Team, AtBat, AtBatResult, Game } from "@packages/storage"
 
 const storage = new Storage()
 
 export default function GamesPage() {
   const { toast } = useToast()
   const [teams, setTeams] = useState<Team[]>([])
-  const [games, setGames] = useState<GameState[]>([])
+  const [games, setGames] = useState<Game[]>([])
 
   // 新しいゲーム用の状態
   const [homeTeamId, setHomeTeamId] = useState("")
@@ -255,7 +182,7 @@ export default function GamesPage() {
       return
     }
 
-    const newGame: GameState = {
+    const newGame: Game = {
       id: Date.now().toString(),
       homeTeamId,
       awayTeamId,

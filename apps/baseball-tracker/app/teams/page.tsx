@@ -9,24 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { PlusCircle, Trash2, Pencil, X, Check } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import { Storage, Team as StorageTeam } from "@packages/storage"
-
-// 型定義
-type Position = "投手" | "捕手" | "一塁手" | "二塁手" | "三塁手" | "遊撃手" | "外野手"
-
-type Player = {
-  id: string
-  name: string
-  number: string
-  position: Position[]
-  type: "pitcher" | "batter" | "both"
-}
-
-type Team = {
-  id: string
-  name: string
-  players: Player[]
-}
+import { Storage, Team, Player, Position } from "@packages/storage"
 
 const storage = new Storage()
 
@@ -38,14 +21,7 @@ export default function TeamsPage() {
     // ローカルストレージから読み込み
     if (typeof window !== "undefined") {
       const storedTeams = storage.getTeams()
-      // positionを文字列から配列に変換
-      return storedTeams.map(team => ({
-        ...team,
-        players: team.players.map(player => ({
-          ...player,
-          position: player.position.split(", ").filter(Boolean) as Position[]
-        }))
-      }))
+      return storedTeams
     }
     return []
   })
@@ -64,15 +40,7 @@ export default function TeamsPage() {
   // チームを保存
   const saveTeams = (updatedTeams: Team[]) => {
     setTeams(updatedTeams)
-    // positionを配列から文字列に変換
-    const teamsToStore = updatedTeams.map(team => ({
-      ...team,
-      players: team.players.map(player => ({
-        ...player,
-        position: player.position.join(", ")
-      }))
-    }))
-    storage.setTeams(teamsToStore)
+    storage.setTeams(updatedTeams)
   }
 
   // チームを追加
