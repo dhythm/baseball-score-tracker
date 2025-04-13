@@ -27,6 +27,29 @@ type Team = {
   players: Player[]
 }
 
+type PlayType = 
+  | "盗塁"
+  | "盗塁死"
+  | "進塁"
+  | "進塁死"
+  | "ボーク"
+  | "暴投"
+  | "捕逸"
+  | "走塁死"
+
+type Play = {
+  id: string
+  type: PlayType
+  playerId: string
+  pitcherId: string
+  inning: number
+  outs: number
+  isTopInning: boolean
+  timestamp: number
+  fromBase?: 1 | 2 | 3  // 走者の現在のベース
+  toBase?: 2 | 3 | 4    // 目標ベース
+}
+
 type AtBatResult =
   | "安打"
   | "二塁打"
@@ -69,6 +92,11 @@ type AtBat = {
   timestamp: number
 }
 
+type Runner = {
+  playerId: string
+  base: 1 | 2 | 3
+}
+
 type GameState = {
   id: string
   homeTeamId: string
@@ -81,6 +109,8 @@ type GameState = {
   homeScore: number
   awayScore: number
   atBats: AtBat[]
+  plays: Play[]
+  runners: Runner[]  // 追加：現在の走者情報
   startTime: number
   endTime: number | null
   isComplete: boolean
@@ -321,6 +351,9 @@ export default function GameDetailPage() {
   const [currentResult, setCurrentResult] = useState<AtBatResult | "">("")
   const [currentDirection, setCurrentDirection] = useState<BattedBallDirection | "">("")
   const [currentRbi, setCurrentRbi] = useState<number>(0)
+  const [currentPlayType, setCurrentPlayType] = useState<PlayType | "">("")
+  const [selectedRunner, setSelectedRunner] = useState<string>("")
+  const [targetBase, setTargetBase] = useState<2 | 3 | 4 | "">("")
 
   // ローカルストレージからデータを読み込む
   useEffect(() => {
@@ -335,7 +368,11 @@ export default function GameDetailPage() {
       if (savedGames) {
         const game = savedGames.find(g => g.id === id)
         if (game) {
-          setCurrentGame(game)
+          setCurrentGame({
+            ...game,
+            plays: game.plays || [],
+            runners: game.runners || []
+          })
         }
       }
     }
@@ -458,6 +495,42 @@ export default function GameDetailPage() {
       title: "記録完了",
       description: `${getPlayerName(currentTeamId, currentBatter.id)}の${result}を記録しました`,
     })
+
+    // 安打の場合は走者を追加
+    if (["安打", "二塁打", "三塁打", "本塁打"].includes(result)) {
+      const newRunners = [...currentGame.runners]
+      
+      // 既存の走者を進塁
+      currentGame.runners.forEach(runner => {
+        if (result === "本塁打") {
+          // ホームランの場合は全員生還
+          newRunners = newRunners.filter(r => r.playerId !== runner.playerId)
+        } else {
+          // 安打の場合は全員進塁
+          const advanceBase = (base: number) => Math.min(base + 1, 3) as 1 | 2 | 3
+          newRunners = newRunners.map(r =>
+            r.playerId === runner.playerId
+              ? { ...r, base: advanceBase(r.base) }
+              : r
+          )
+        }
+      })
+
+      // 打者を走者として追加（本塁打以外の場合）
+      if (result !== "本塁打" && currentBatter) {
+        const baseMap = {
+          "安打": 1,
+          "二塁打": 2,
+          "三塁打": 3
+        } as const
+        newRunners.push({
+          playerId: currentBatter.id,
+          base: baseMap[result as keyof typeof baseMap] as 1 | 2 | 3
+        })
+      }
+
+      updatedGame.runners = newRunners
+    }
   }
 
   // 試合を終了
@@ -544,6 +617,109 @@ export default function GameDetailPage() {
     "センター",
     "ライト",
   ]
+
+  // プレー結果を記録
+  const recordPlay = (playType: PlayType) => {
+    if (!currentGame || !selectedRunner) return
+
+    const currentTeamId = currentGame.isTopInning ? currentGame.awayTeamId : currentGame.homeTeamId
+    const currentPitcherId = currentGame.isTopInning ? currentGame.homePitcherId : currentGame.awayPitcherId
+    
+    // 選択された走者の情報を取得
+    const runner = currentGame.runners.find(r => r.playerId === selectedRunner)
+    if (!runner && ["盗塁", "盗塁死", "進塁", "進塁死", "走塁死"].includes(playType)) {
+      toast({
+        title: "エラー",
+        description: "走者が選択されていません",
+        variant: "destructive",
+      })
+      return
+    }
+
+    // プレー結果を記録
+    const newPlay: Play = {
+      id: Date.now().toString(),
+      type: playType,
+      playerId: selectedRunner,
+      pitcherId: currentPitcherId,
+      inning: currentGame.currentInning,
+      outs: currentGame.outs,
+      isTopInning: currentGame.isTopInning,
+      timestamp: Date.now(),
+      fromBase: runner?.base,
+      toBase: targetBase || undefined,
+    }
+
+    // ゲーム状態を更新
+    let newOuts = currentGame.outs
+    let newRunners = [...currentGame.runners]
+
+    if (["盗塁死", "進塁死", "走塁死"].includes(playType)) {
+      newOuts += 1
+      // 走者をベースから除外
+      newRunners = newRunners.filter(r => r.playerId !== selectedRunner)
+    } else if (["盗塁", "進塁"].includes(playType) && targetBase) {
+      // 走者のベースを更新
+      newRunners = newRunners.map(r =>
+        r.playerId === selectedRunner
+          ? { ...r, base: (targetBase === 4 ? undefined : targetBase - 1) as 1 | 2 | 3 }
+          : r
+      ).filter(r => r.base !== undefined)
+    }
+
+    // 3アウトで攻守交代
+    let newIsTopInning = currentGame.isTopInning
+    let newInning = currentGame.currentInning
+    if (newOuts >= 3) {
+      newOuts = 0
+      newIsTopInning = !newIsTopInning
+      newRunners = [] // イニング終了時に走者をクリア
+      if (!newIsTopInning) {
+        newInning += 1
+      }
+    }
+
+    const updatedGame: GameState = {
+      ...currentGame,
+      outs: newOuts,
+      isTopInning: newIsTopInning,
+      currentInning: newInning,
+      plays: [...currentGame.plays, newPlay],
+      runners: newRunners,
+    }
+
+    // ゲーム一覧を更新
+    const savedGames = storage.getGames() || []
+    const updatedGames = savedGames.map((game) => (game.id === currentGame.id ? updatedGame : game))
+
+    setCurrentGame(updatedGame)
+    storage.setGames(updatedGames)
+
+    // 結果をリセット
+    setCurrentPlayType("")
+    setSelectedRunner("")
+    setTargetBase("")
+
+    toast({
+      title: "記録完了",
+      description: `${getPlayerName(currentTeamId, selectedRunner)}の${playType}を記録しました`,
+    })
+  }
+
+  // プレー結果オプション
+  const playTypeOptions: PlayType[] = [
+    "盗塁",
+    "盗塁死",
+    "進塁",
+    "進塁死",
+    "ボーク",
+    "暴投",
+    "捕逸",
+    "走塁死",
+  ]
+
+  // ベースオプション
+  const baseOptions = [1, 2, 3, 4]
 
   const currentBatter = getCurrentBatter()
   const currentPitcher = getCurrentPitcher()
@@ -665,65 +841,152 @@ export default function GameDetailPage() {
                   </div>
                 </div>
 
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">打席結果</label>
-                    <Select value={currentResult} onValueChange={(value) => setCurrentResult(value as AtBatResult)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="結果を選択" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {resultOptions.map((result) => (
-                          <SelectItem key={result} value={result}>
-                            {result}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                <Tabs defaultValue="atbat" className="mt-6">
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="atbat">打席結果</TabsTrigger>
+                    <TabsTrigger value="play">プレー結果</TabsTrigger>
+                  </TabsList>
 
-                  {currentResult && !["四球", "死球", "三振"].includes(currentResult) && (
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">打球方向</label>
-                      <Select value={currentDirection} onValueChange={(value) => setCurrentDirection(value as BattedBallDirection)}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="方向を選択" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {directionOptions.map((direction) => (
-                            <SelectItem key={direction} value={direction}>
-                              {direction}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                  <TabsContent value="atbat">
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">打席結果</label>
+                        <Select value={currentResult} onValueChange={(value) => setCurrentResult(value as AtBatResult)}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="結果を選択" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {resultOptions.map((result) => (
+                              <SelectItem key={result} value={result}>
+                                {result}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {currentResult && !["四球", "死球", "三振"].includes(currentResult) && (
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">打球方向</label>
+                          <Select value={currentDirection} onValueChange={(value) => setCurrentDirection(value as BattedBallDirection)}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="方向を選択" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {directionOptions.map((direction) => (
+                                <SelectItem key={direction} value={direction}>
+                                  {direction}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
+
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">打点</label>
+                        <Select value={currentRbi.toString()} onValueChange={(value) => setCurrentRbi(parseInt(value))}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="打点を選択" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {[0, 1, 2, 3, 4].map((rbi) => (
+                              <SelectItem key={rbi} value={rbi.toString()}>
+                                {rbi}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <Button
+                        className="w-full"
+                        onClick={() => currentResult && recordAtBat(currentResult as AtBatResult)}
+                        disabled={!currentResult || !currentBatter}
+                      >
+                        打席結果を記録
+                      </Button>
                     </div>
-                  )}
+                  </TabsContent>
 
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">打点</label>
-                    <Select value={currentRbi.toString()} onValueChange={(value) => setCurrentRbi(parseInt(value))}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="打点を選択" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {[0, 1, 2, 3, 4].map((rbi) => (
-                          <SelectItem key={rbi} value={rbi.toString()}>
-                            {rbi}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  <TabsContent value="play">
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">プレー結果</label>
+                        <Select value={currentPlayType} onValueChange={(value) => setCurrentPlayType(value as PlayType)}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="結果を選択" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {playTypeOptions.map((type) => (
+                              <SelectItem key={type} value={type}>
+                                {type}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
 
-                  <Button
-                    className="w-full"
-                    onClick={() => currentResult && recordAtBat(currentResult as AtBatResult)}
-                    disabled={!currentResult || !currentBatter}
-                  >
-                    結果を記録
-                  </Button>
-                </div>
+                      {["盗塁", "盗塁死", "進塁", "進塁死", "走塁死"].includes(currentPlayType) && (
+                        <>
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium">走者</label>
+                            <Select value={selectedRunner} onValueChange={setSelectedRunner}>
+                              <SelectTrigger>
+                                <SelectValue placeholder="走者を選択" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {currentGame?.runners.map((runner) => (
+                                  <SelectItem key={runner.playerId} value={runner.playerId}>
+                                    {getPlayerName(currentGame.isTopInning ? currentGame.awayTeamId : currentGame.homeTeamId, runner.playerId)}
+                                    （{runner.base}塁）
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          {["盗塁", "盗塁死", "進塁", "進塁死"].includes(currentPlayType) && selectedRunner && (
+                            <div className="space-y-2">
+                              <label className="text-sm font-medium">目標ベース</label>
+                              <Select
+                                value={targetBase ? targetBase.toString() : ""}
+                                onValueChange={(value) => setTargetBase(parseInt(value) as 2 | 3 | 4)}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="ベースを選択" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {(() => {
+                                    const runner = currentGame?.runners.find(r => r.playerId === selectedRunner)
+                                    if (!runner) return []
+                                    return Array.from({ length: 4 - runner.base }, (_, i) => runner.base + i + 1)
+                                  })().map((base) => (
+                                    <SelectItem key={base} value={base.toString()}>
+                                      {base}塁
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          )}
+                        </>
+                      )}
+
+                      <Button
+                        className="w-full"
+                        onClick={() => currentPlayType && recordPlay(currentPlayType as PlayType)}
+                        disabled={
+                          !currentPlayType ||
+                          (["盗塁", "盗塁死", "進塁", "進塁死", "走塁死"].includes(currentPlayType) && !selectedRunner) ||
+                          (["盗塁", "盗塁死", "進塁", "進塁死"].includes(currentPlayType) && !targetBase)
+                        }
+                      >
+                        プレー結果を記録
+                      </Button>
+                    </div>
+                  </TabsContent>
+                </Tabs>
               </div>
             )}
           </CardContent>
