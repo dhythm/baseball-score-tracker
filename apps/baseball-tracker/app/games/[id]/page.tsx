@@ -780,13 +780,13 @@ export default function GameDetailPage() {
               <table className="w-full border-collapse">
                 <thead>
                   <tr className="border-b">
-                    <th className="p-2 text-left">チーム</th>
+                    <th className="p-2 text-left min-w-[120px]">チーム</th>
                     {Array.from({ length: Math.max(9, currentGame.currentInning) }, (_, i) => (
-                      <th key={i + 1} className="p-2 text-center w-10">{i + 1}</th>
+                      <th key={i + 1} className="p-2 text-center min-w-[40px]">{i + 1}</th>
                     ))}
-                    <th className="p-2 text-center w-10">R</th>
-                    <th className="p-2 text-center w-10">H</th>
-                    <th className="p-2 text-center w-10">E</th>
+                    <th className="p-2 text-center min-w-[40px]">R</th>
+                    <th className="p-2 text-center min-w-[40px]">H</th>
+                    <th className="p-2 text-center min-w-[40px]">E</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -797,11 +797,11 @@ export default function GameDetailPage() {
                     
                     return (
                       <tr key={team} className="border-b">
-                        <td className="p-2 font-medium">
+                        <td className="p-2 font-medium whitespace-nowrap">
                           {getTeamName(team === "away" ? currentGame.awayTeamId : currentGame.homeTeamId)}
                         </td>
                         {teamStats.scores.map((score, i) => (
-                          <td key={i} className="p-2 text-center">
+                          <td key={i} className="p-2 text-center min-w-[40px]">
                             {i < currentGame.currentInning - 1 || 
                              (i === currentGame.currentInning - 1 && 
                               (!currentGame.isTopInning || team === "away")) 
@@ -809,9 +809,9 @@ export default function GameDetailPage() {
                               : ""}
                           </td>
                         ))}
-                        <td className="p-2 text-center font-bold">{totalScore}</td>
-                        <td className="p-2 text-center">{teamStats.hits}</td>
-                        <td className="p-2 text-center">{teamStats.errors}</td>
+                        <td className="p-2 text-center font-bold min-w-[40px]">{totalScore}</td>
+                        <td className="p-2 text-center min-w-[40px]">{teamStats.hits}</td>
+                        <td className="p-2 text-center min-w-[40px]">{teamStats.errors}</td>
                       </tr>
                     )
                   })}
