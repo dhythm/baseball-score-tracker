@@ -63,7 +63,7 @@ function SortableLineupItem({
     <div 
       ref={setNodeRef} 
       style={style} 
-      className={`grid grid-cols-[auto_1fr_1fr_1fr] gap-2 items-center p-2 rounded-md hover:bg-accent/50 ${isDragging ? 'bg-accent/50 shadow-lg' : ''}`}
+      className={`grid grid-cols-[auto_60px_2fr_120px] gap-2 items-center p-2 rounded-md hover:bg-accent/50 ${isDragging ? 'bg-accent/50 shadow-lg' : ''}`}
     >
       <button 
         {...attributes} 
