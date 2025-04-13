@@ -335,7 +335,9 @@ const calculateInningResults = (game: GameState, teamId: string, teams: Team[]) 
     const playerResults = results.get(atBat.batterId)
     if (!playerResults) return
 
-    playerResults.set(atBat.inning, atBat.result)
+    // 打点がある場合は結果に打点を追加
+    const resultWithRbi = atBat.rbi > 0 ? `${atBat.result}(${atBat.rbi})` : atBat.result
+    playerResults.set(atBat.inning, resultWithRbi)
   })
 
   return { results, lineup }
